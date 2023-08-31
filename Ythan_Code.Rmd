@@ -1,0 +1,716 @@
+---
+title: "Final code"
+output:
+  html_document: default
+  pdf_document: default
+date: "2023-08-01"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(igraph)
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+```
+
+
+```{r}
+data1 <- read_excel("Ythan92.xlsx")
+```
+
+Reference [24]
+Reference [25]
+
+```{r}
+dd1 <- as.data.frame(data1)
+rownames(dd1) <- dd1[, 1]
+mass <- dd1[, 2]   
+number <- dd1[, 3]
+dd1 <- dd1[, -c(1, 2, 3)]
+gg1 <- graph_from_adjacency_matrix(as.matrix(dd1), mode = "directed")
+V(gg1)$mass <- mass
+V(gg1)$number <- number
+vertex_attr_names(gg1)
+```
+Number of nodes and edges
+
+```{r}
+vcount(gg1) #no.of vertices
+ecount(gg1) #no.of edges
+```
+Shortest Paths
+
+```{r}
+# The diameter function gives the longest shortest path in the network.
+diameter(gg1, directed = TRUE, unconnected = TRUE, weights=NA)
+diameter(gg1, directed = FALSE, unconnected = TRUE, weights=NA)
+
+```
+```{r}
+# This function gives the pair of nodes with longest shortest path between them in the network
+far1_und <- farthest_vertices(gg1,directed = FALSE, weights=NA)
+far1_und
+# This function gives the pair of nodes with longest shortest path between them in the network
+far1_dir <- farthest_vertices(gg1,directed = TRUE, weights=NA)
+far1_dir
+```
+
+```{r}
+from_node <- far1_und$vertices[1]
+to_node <-far1_und$vertices[2]
+
+short.path1<-shortest_paths(gg1, from = from_node, to = to_node, weights = NA, mode="all", output = "both")
+short.path1$vpath
+
+from_node <- far1_dir$vertices[1]
+to_node <-far1_dir$vertices[2]
+
+short.path12<-shortest_paths(gg1, from = from_node, to = to_node, weights = NA, mode="all", output = "both")
+short.path12$vpath
+
+```
+
+
+Clustering coefficient
+
+```{r}
+cat("clustering coefficient :", transitivity(gg1, type="localaverage"))
+```
+
+Average path length
+
+```{r}
+cat("average path length :", mean_distance(gg1))
+```
+
+
+```{r}
+dgCmat1<- as_adjacency_matrix(gg1)
+gg_mat1 <- as.matrix(dgCmat1)
+gg_mat1 %>%
+  kbl(caption = "Ythan_Estuary Food Web Matrix") %>%
+  kable_styling(full_width = F)%>%
+  scroll_box(width = "850px", height = "300px")
+```
+
+
+The number of species
+```{r}
+number_of_species1 <-ncol(gg_mat1)
+results1 <- data.frame(Measure="Number of Species",
+                  Value=number_of_species1,
+                  stringsAsFactors=FALSE)
+results1
+```
+
+```{r}
+gg_layout <- layout_with_lgl(gg1)
+# plot the graph
+plot(gg1, 
+layout=gg_layout,
+vertex.color= rgb(0.3,0.9,0.1, 0.6),
+vertex.size= 8, 
+vertex.frame.color=NA, 
+vertex.label.color="black", 
+vertex.label.cex=0.5, 
+vertex.label.dist=0, 
+edge.curved=0.2,
+edge.width=0.4,
+edge.arrow.size=0.01,
+edge.color= rgb(0.5,0.5,0.5, 0.3),
+main="Ythan Estuary Network")
+
+```
+
+The number of predators for each species
+
+```{r}
+row_count1<- rowSums(gg_mat1)
+row_count_df1 <-as.data.frame(row_count1)
+colnames(row_count_df1) <- "predators"
+row_count_df1$Species<-rownames(row_count_df1)
+rownames(row_count_df1)<-NULL
+row_count_df1<-row_count_df1[,c("Species","predators")]
+row_count_df1 %>%
+  arrange(-`predators`)%>% 
+  kbl(caption = "Number of predators for each species") %>%
+  kable_styling(full_width = F)%>%
+  scroll_box( height = "400px")
+```
+
+
+The number of prey species eaten by each species
+
+```{r}
+col_count1<-colSums(gg_mat1)
+col_count_df1 <-as.data.frame(col_count1)
+colnames(col_count_df1)<- c("prey")
+col_count_df1$Species<-rownames(col_count_df1)
+rownames(col_count_df1)<-NULL
+col_count_df1<-col_count_df1[,c("Species","prey")]
+col_count_df1  %>%
+  arrange(-`prey`)%>%
+  kbl(caption = "Number of prey species eaten by each species") %>%
+  kable_styling(full_width = F)%>%
+  scroll_box( height = "400px")
+```
+
+
+Basal species
+
+```{r}
+basal1 <- c()
+b_count1<-0
+for(i in 1:length(col_count1)){
+  if(col_count1[i] == 0 ){
+    b_count1 = b_count1 + 1
+    basal1<-c(basal1,names(col_count1)[i])
+  }
+}
+basal_df1 <- as.data.frame(basal1)
+colnames(basal_df1)<-"Basal species"
+kbl(basal_df1) %>%
+  kable_styling(full_width = F)%>%
+  scroll_box( height = "300px")
+```
+
+Top species
+
+```{r}
+top1 <- c()
+t_count1<-0
+for(i in 1:length(row_count1)){
+  if(row_count1[i] == 0 ){
+    t_count1 = t_count1 + 1
+    top1<-c(top1,names(row_count1)[i])
+  }
+}
+top_df1 <- as.data.frame(top1)
+colnames(top_df1)<-"Top species"
+kbl(top_df1) %>%
+  kable_styling(full_width = F)%>%
+  scroll_box( height = "300px")
+```
+
+Intermediate species
+
+```{r}
+i_count1 <- number_of_species1 - (t_count1 + b_count1)
+species<-rownames(gg_mat1)
+intermediate1<-species[! (species %in% basal1 | species %in% top1) ]
+intermediate_df1 <- as.data.frame(intermediate1)
+colnames(intermediate_df1)<-"Intermediate species"
+kbl(intermediate_df1) %>%
+  kable_styling(full_width = F)%>%
+  scroll_box( height = "300px")
+```
+
+Ratio of prey to predators
+
+
+```{r}
+prey_ratio1 <- round((b_count1 + i_count1)/(i_count1 +t_count1),1)
+results1<-rbind(results1, c("Ratio of Prey to Predators ", prey_ratio1))
+print(results1)
+```
+
+Number of Predations
+
+```{r}
+num_predations1 <- sum(gg_mat1)
+results1<-rbind(results1, c("Number of Predations ", num_predations1))
+```
+
+Connectance
+
+```{r}
+all_possible_links1 = number_of_species1 *  (number_of_species1-1)
+connectance1<- round(num_predations1/all_possible_links1,2)
+results1<-rbind(results1, c("Connectance", connectance1))
+
+```
+
+Number of cannibals
+
+```{r}
+c_count1<-0
+for(i in 1:number_of_species1){
+  if(gg_mat1[i,i]!=0){
+    c_count1=c_count1+1
+  }
+}
+results1<-rbind(results1, c("Number of Cannibals", c_count1))
+
+```
+
+Predators with single prey species
+
+```{r}
+freq_of_one1 <- table(col_count1)[["1"]]
+results1<-rbind(results1, c("Number of predators with single prey species", freq_of_one1))
+print(results1)
+```
+
+
+Degree Centrality
+
+In-degree
+
+```{r}
+in_deg1<-degree(gg1, mode="in")
+cat(paste0("Highest in-degree="), max(in_deg1),"\n")
+which(in_deg1==max(in_deg1))
+
+```
+Out-degree
+
+```{r}
+out_deg1<-degree(gg1, mode="out")
+cat(paste0("Highest out-degree="), max(out_deg1),"\n")
+which(out_deg1==max(out_deg1))
+```
+```{r}
+deg_cent1<-degree(gg1)
+cat(paste0("Degree centrality="), max(deg_cent1),"\n")
+which(deg_cent1==max(deg_cent1))
+```
+Betweenness Centrality
+
+```{r}
+bet_cent1 <- betweenness(gg1, weights = NA)
+cat(paste0("Betweenness centrality="),max(bet_cent1),"\n")
+which.max(bet_cent1)
+```
+
+Closeness centrality
+
+```{r}
+close_cent1<- closeness (gg1, mode="out", normalized = T)
+cat(paste0("Closeness centrality"),"\n")
+which.max(close_cent1)
+```
+
+```{r}
+GnBlRe4<-c("#C7E9B4", "#2C7FB8", "#62b357","#CC4C02")
+ylGnBl5<-c("#FFFFCC","#C7E9B4","#7FCDBB","#40B6C4","#2C7FB8" ,"#253494")
+GnBlRe<-colorRampPalette(GnBlRe4)
+fine = 20
+lyt <- layout_with_fr(gg1)
+```
+
+```{r}
+graphCol1 = GnBlRe(fine)[as.numeric(cut(deg_cent1,breaks = fine))]
+plot(gg1, vertex.color = graphCol1, main = "Degree Centrality", vertex.label.cex = 0.5, 
+     layout = lyt[, 2:1], vertex.size = 10, edge.arrow.size = 0.5, edge.width = 0.5, edge.curved = 0.1, 
+     vertex.frame.color = "white", vertex.label.color = "black")
+```
+
+
+```{r}
+graphCol1 = GnBlRe(fine)[as.numeric(cut(bet_cent1,breaks = fine))]
+plot(gg1, vertex.color = graphCol1, main = "Betweenness Centrality", vertex.label.cex = 0.5, 
+     layout = lyt[, 2:1], vertex.size = 10, edge.curved = 0.1, edge.arrow.size = 0.5, edge.width = 0.5,
+     vertex.frame.color = "white", vertex.label.color = "black")
+
+
+```
+
+Delete an edge to see if we can shift the centrality focus to the right side of the graph
+
+```{r}
+graphCol1 = GnBlRe(fine)[as.numeric(cut(deg_cent1,breaks = fine))]
+gg_flounder1<-delete.vertices(gg1, "Flounder")
+gg_flounder1<-plot(gg_flounder1, vertex.color = graphCol1, main = "Degree centrality after removing Flounder",
+                   vertex.label.cex = 0.5,  vertex.size = 10,
+                   layout = lyt[, 2:1], edge.arrow.size = 0.5, edge.curved = 0.1, edge.width = 0.5,
+                   vertex.frame.color = "white", vertex.label.color = "black")  
+```
+After removing Flounder, Flounder juv become the influential node.
+
+```{r}
+graphCol1 = GnBlRe(fine)[as.numeric(cut(deg_cent1,breaks = fine))]
+gg_flounder_juv1<-delete.vertices(gg1, "Flounder juv.")
+plot(gg_flounder_juv1, vertex.color = graphCol1, main = "Degree Centrality After removing Flounder juv.",
+     vertex.label.cex = 0.5, vertex.size = 10,
+     layout = lyt[, 2:1], edge.arrow.size = 0.5, edge.curved = 0.1, edge.width = 0.5,
+     vertex.frame.color = "white", vertex.label.color = "black")
+```
+After removing Flounder juv., Sea trout became the influential node
+
+```{r}
+graphCol1 = GnBlRe(fine)[as.numeric(cut(bet_cent1,breaks = fine))]
+gg_flounder1<-delete.vertices(gg1, "Flounder")
+plot(gg_flounder1, vertex.color = graphCol1, main = "Betweenness Centrality after removing Flounder", vertex.label.cex = 0.5, vertex.size = 10,
+     layout = lyt[, 2:1], edge.arrow.size = 0.5, edge.curved = 0.1, edge.width = 0.5,
+     vertex.frame.color = "white", vertex.label.color = "black")
+```
+
+Population A: Top species
+Population B: Intermediate species
+Population C: Basal species
+
+
+When a portion of B is removed:
+
+```{r}
+# Function to simulate the agent-based model
+simulate_agent_based_model <- function(num_generations, 
+                                       initial_pop_A, initial_pop_B, initial_pop_C,
+                                       birth_rate_A, birth_rate_B, birth_rate_C,
+                                       death_rate_A, death_rate_B, death_rate_C,
+                                       consumption_AB, consumption_BC, consumption_C,
+                                       removal_ratio_A, removal_ratio_B, removal_ratio_C) {
+  
+  # Create empty data frame to store results
+  model_results <- data.frame(Generation = numeric(),
+                              Population_A = numeric(),
+                              Population_B = numeric(),
+                              Population_C = numeric())
+  
+  # Initialize populations
+  population_A <- initial_pop_A
+  population_B <- initial_pop_B
+  population_C <- initial_pop_C
+
+  total_resources <- population_A + population_B + population_C
+  
+  # Simulation loop for each generation
+  for (generation in 1:num_generations) {
+    # Compute resource consumed by each species
+    resource_consumed_AB <- consumption_AB * population_B/total_resources
+    resource_consumed_BC <- consumption_BC * population_C/total_resources
+    resource_consumed_C <- consumption_C * population_C/total_resources
+    
+    # Update populations based on birth, death rates, and resource consumption
+    new_population_A <- population_A + (birth_rate_A * population_A * resource_consumed_AB) - (death_rate_A * population_A)
+    new_population_B <- population_B + (birth_rate_B * population_B * resource_consumed_BC) - (death_rate_B * population_B)
+    new_population_C <- population_C + (birth_rate_C * population_C * resource_consumed_C) - (death_rate_C * population_C )
+    
+    # If removal_ratio is specified, remove a percentage of each species' population
+    if (!is.null(removal_ratio_A)) {
+      removal_count_A <- round(initial_pop_A * removal_ratio_A)
+      new_population_A <- max(new_population_A - removal_count_A, 0)
+    }
+    
+    if (!is.null(removal_ratio_B)) {
+      removal_count_B <- round(initial_pop_B * removal_ratio_B)
+      new_population_B <- max(new_population_B - removal_count_B, 0)
+    }
+    
+    if (!is.null(removal_ratio_C)) {
+      removal_count_C <- round(initial_pop_C * removal_ratio_C)
+      new_population_C <- max(new_population_C - removal_count_C, 0)
+    }
+    
+    # Update populations for the next generation
+    population_A <- max(round(new_population_A), 0)
+    population_B <- max(round(new_population_B), 0)
+    population_C <- max(round(new_population_C), 0)
+    
+    # Store the results for this generation
+    model_results <- rbind(model_results, c(generation, population_A, population_B, population_C))
+  }
+  
+  colnames(model_results) <- c("Generation", "Population_A", "Population_B", "Population_C")
+  return(model_results)
+}
+
+# Parameters for the simulation
+num_generations <- 50
+initial_pop_A <- 100 * t_count1 # Number of top species 
+initial_pop_B <- 1000 * i_count1  # Number of intermediate species
+initial_pop_C <- 6000 * b_count1 # Number of basal species (prey)
+birth_rate_A <- 0.2
+birth_rate_B <- 0.4
+birth_rate_C <- 0.8
+death_rate_A <- 0.05
+death_rate_B <- 0.1
+death_rate_C <- 0.2
+consumption_AB <- 0.2  # Resource consumption rate of predators (B) by top predators (A)
+consumption_BC <- 0.3  # Resource consumption rate of prey (C) by intermediate species (B)
+consumption_C <- 0.1 #Resource consumption rate of sunlight, plants etc by prey (C)
+removal_ratio_A <- 0  # Proportion of top predator's population to remove
+removal_ratio_B <- 0.2  # Proportion of predator's population to remove
+removal_ratio_C <- 0  # Proportion of prey's population to remove
+
+# Run the simulation
+results <- simulate_agent_based_model(num_generations, 
+                                      initial_pop_A, initial_pop_B, initial_pop_C,
+                                      birth_rate_A, birth_rate_B, birth_rate_C,
+                                      death_rate_A, death_rate_B, death_rate_C,
+                                      consumption_AB, consumption_BC, consumption_C,
+                                      removal_ratio_A, removal_ratio_B, removal_ratio_C)
+
+# Print the results
+print(results)
+ results$Population_A[results$Population_A <= 0] <- 1  # Set zero or negative values to 1
+ results$Population_B[results$Population_B <= 0] <- 1
+ results$Population_C[results$Population_C <= 0] <- 1
+
+# Plot the results with improved aesthetics
+ggplot(results, aes(x = Generation)) +
+  geom_line(aes(y = Population_A, color = "Population_A"), size = 0.8) +
+  geom_line(aes(y = Population_B, color = "Population_B"), size = 0.8) +
+  geom_line(aes(y = Population_C, color = "Population_C"), size = 0.8) +
+  labs(x = "Generation", y = "Population", color = "Species") +
+  scale_x_continuous(breaks = seq(0, num_generations, by = 10)) +  # Custom x-axis breaks
+  scale_y_log10(labels = scales::comma) +
+  #scale_y_continuous(trans = "log10", breaks = c(100, 1000, 10000, 100000)) +
+  #scale_y_continuous(breaks = seq(0, 10000)) +  # Custom y-axis breaks
+  scale_color_manual(values = c("Population_A" = "blue", "Population_B" = "red", "Population_C" = "green"))+
+  theme_minimal() +
+  theme(legend.title = element_blank(),  
+        legend.position = "right")
+
+```
+When a portion of A is removed:
+
+```{r}
+# Function to simulate the agent-based model
+simulate_agent_based_model <- function(num_generations, 
+                                       initial_pop_A, initial_pop_B, initial_pop_C,
+                                       birth_rate_A, birth_rate_B, birth_rate_C,
+                                       death_rate_A, death_rate_B, death_rate_C,
+                                       consumption_AB, consumption_BC, consumption_C,
+                                       removal_ratio_A, removal_ratio_B, removal_ratio_C) {
+  
+  # Create empty data frame to store results
+  model_results <- data.frame(Generation = numeric(),
+                              Population_A = numeric(),
+                              Population_B = numeric(),
+                              Population_C = numeric())
+  
+  # Initialize populations
+  population_A <- initial_pop_A
+  population_B <- initial_pop_B
+  population_C <- initial_pop_C
+  
+  total_resources <- population_A + population_B + population_C
+  
+  # Simulation loop for each generation
+  for (generation in 1:num_generations) {
+    # Compute resource consumed by each species
+    resource_consumed_AB <- consumption_AB * population_B/total_resources
+    resource_consumed_BC <- consumption_BC * population_C/total_resources
+    resource_consumed_C <- consumption_C * population_C/total_resources
+    
+    # Update populations based on birth, death rates, and resource consumption
+    new_population_A <- population_A + (birth_rate_A * population_A * resource_consumed_AB) - (death_rate_A * population_A)
+    new_population_B <- population_B + (birth_rate_B * population_B) - (death_rate_B * population_B * resource_consumed_BC)
+    new_population_C <- population_C + (birth_rate_C * population_C * resource_consumed_C) - (death_rate_C * population_C)
+    
+    # If removal_ratio is specified, remove a percentage of each species' population
+    if (!is.null(removal_ratio_A)) {
+      removal_count_A <- round(initial_pop_A * removal_ratio_A)
+      new_population_A <- max(new_population_A - removal_count_A, 0)
+    }
+    
+    if (!is.null(removal_ratio_B)) {
+      removal_count_B <- round(initial_pop_B * removal_ratio_B)
+      new_population_B <- max(new_population_B - removal_count_B, 0)
+    }
+    
+    if (!is.null(removal_ratio_C)) {
+      removal_count_C <- round(initial_pop_C * removal_ratio_C)
+      new_population_C <- max(new_population_C - removal_count_C, 0)
+    }
+    
+    # Update populations for the next generation
+    population_A <- max(round(new_population_A), 0)
+    population_B <- max(round(new_population_B), 0)
+    population_C <- max(round(new_population_C), 0)
+    
+    # Store the results for this generation
+    model_results <- rbind(model_results, c(generation, population_A, population_B, population_C))
+  }
+  
+  colnames(model_results) <- c("Generation", "Population_A", "Population_B", "Population_C")
+  return(model_results)
+}
+
+# Parameters for the simulation
+num_generations <- 50
+initial_pop_A <- 100 * t_count1 # Number of top species 
+initial_pop_B <- 1000 * i_count1  # Number of intermediate species
+initial_pop_C <- 6000 * b_count1 # Number of basal species (prey)
+birth_rate_A <- 0.2
+birth_rate_B <- 0.3
+birth_rate_C <- 0.8
+death_rate_A <- 0.05
+death_rate_B <- 0.15
+death_rate_C <- 0.2
+consumption_AB <- 0.2  # Resource consumption rate of predators (B) by top predators (A)
+consumption_BC <- 0.15  # Resource consumption rate of prey (C) by intermediate species (B)
+consumption_C <- 0.1 #Resource consumption rate of sunlight, plants etc by prey (C)
+removal_ratio_A <- 0.1  # Proportion of top predator's population to remove
+removal_ratio_B <- 0  # Proportion of predator's population to remove
+removal_ratio_C <- 0  # Proportion of prey's population to remove
+
+# Run the simulation
+results <- simulate_agent_based_model(num_generations, 
+                                      initial_pop_A, initial_pop_B, initial_pop_C,
+                                      birth_rate_A, birth_rate_B, birth_rate_C,
+                                      death_rate_A, death_rate_B, death_rate_C,
+                                      consumption_AB, consumption_BC, consumption_C,
+                                      removal_ratio_A, removal_ratio_B, removal_ratio_C)
+
+# Print the results
+print(results)
+results$Population_A[results$Population_A <= 0] <- 1  # Set zero or negative values to 1
+results$Population_B[results$Population_B <= 0] <- 1
+results$Population_C[results$Population_C <= 0] <- 1
+
+# Plot the results with improved aesthetics
+ggplot(results, aes(x = Generation)) +
+  geom_line(aes(y = Population_A, color = "Population_A"), size = 0.8) +
+  geom_line(aes(y = Population_B, color = "Population_B"), size = 0.8) +
+  geom_line(aes(y = Population_C, color = "Population_C"), size = 0.8) +
+  labs(x = "Generation", y = "Population", color = "Species") +
+  scale_x_continuous(breaks = seq(0, num_generations, by = 10)) +  # Custom x-axis breaks
+  scale_y_log10(labels = scales::comma) +
+  scale_color_manual(values = c("Population_A" = "blue", "Population_B" = "red", "Population_C" = "green"))+
+  theme_minimal() +
+  theme(legend.title = element_blank(),  
+        legend.position = "right")
+```
+Here we can see that, as 10% of the population A is removed, the growth of population B is increasing as it doesn't have a predator and the prey of it, population C is decreasing. 
+
+```{r}
+
+
+```
+
+When Portion of C is removed: 
+```{r}
+# Function to simulate the agent-based model
+simulate_agent_based_model <- function(num_generations, 
+                                       initial_pop_A, initial_pop_B, initial_pop_C,
+                                       birth_rate_A, birth_rate_B, birth_rate_C,
+                                       death_rate_A, death_rate_B, death_rate_C,
+                                       consumption_AB, consumption_BC, consumption_C,
+                                       removal_ratio_A, removal_ratio_B, removal_ratio_C) {
+  
+  # Create empty data frame to store results
+  model_results <- data.frame(Generation = numeric(),
+                              Population_A = numeric(),
+                              Population_B = numeric(),
+                              Population_C = numeric())
+  
+  # Initialize populations
+  population_A <- initial_pop_A
+  population_B <- initial_pop_B
+  population_C <- initial_pop_C
+  
+  total_resources <- population_A + population_B + population_C
+  
+  # Simulation loop for each generation
+  for (generation in 1:num_generations) {
+    # Compute resource consumed by each species
+    resource_consumed_AB <- consumption_AB * population_B/total_resources
+    resource_consumed_BC <- consumption_BC * population_C/total_resources
+    resource_consumed_C <- consumption_C * population_C/total_resources
+    
+    # Update populations based on birth, death rates, and resource consumption
+    new_population_A <- population_A + (birth_rate_A * population_A * resource_consumed_AB) - (death_rate_A * population_A)
+    new_population_B <- population_B + (birth_rate_B * population_B * resource_consumed_BC) - (death_rate_B * population_B)
+    new_population_C <- population_C + (birth_rate_C * population_C * resource_consumed_C) - (death_rate_C * population_C)
+    
+    # If removal_ratio is specified, remove a percentage of each species' population
+    if (!is.null(removal_ratio_A)) {
+      removal_count_A <- round(initial_pop_A * removal_ratio_A)
+      new_population_A <- max(new_population_A - removal_count_A, 0)
+    }
+    
+    if (!is.null(removal_ratio_B)) {
+      removal_count_B <- round(initial_pop_B * removal_ratio_B)
+      new_population_B <- max(new_population_B - removal_count_B, 0)
+    }
+    
+    if (!is.null(removal_ratio_C)) {
+      removal_count_C <- round(initial_pop_C * removal_ratio_C)
+      new_population_C <- max(new_population_C - removal_count_C, 0)
+    }
+    
+    # Update populations for the next generation
+    population_A <- max(round(new_population_A), 0)
+    population_B <- max(round(new_population_B), 0)
+    population_C <- max(round(new_population_C), 0)
+    
+    # Store the results for this generation
+    model_results <- rbind(model_results, c(generation, population_A, population_B, population_C))
+  }
+  
+  colnames(model_results) <- c("Generation", "Population_A", "Population_B", "Population_C")
+  return(model_results)
+}
+
+# Parameters for the simulation
+num_generations <- 50
+initial_pop_A <- 100 * t_count1 # Number of top species 
+initial_pop_B <- 1000 * i_count1  # Number of intermediate species
+initial_pop_C <- 6000 * b_count1 # Number of basal species (prey)
+birth_rate_A <- 0.1
+birth_rate_B <- 0.15
+birth_rate_C <- 0.5
+death_rate_A <- 0.05
+death_rate_B <- 0.1
+death_rate_C <- 0.2
+consumption_AB <- 0.4  # Resource consumption rate of predators (B) by top predators (A)
+consumption_BC <- 0.2  # Resource consumption rate of prey (C) by intermediate species (B)
+consumption_C <- 0.1 #Resource consumption rate of sunlight, plants etc by prey (C)
+removal_ratio_A <- 0  # Proportion of top predator's population to remove
+removal_ratio_B <- 0  # Proportion of predator's population to remove
+removal_ratio_C <- 0.5  # Proportion of prey's population to remove
+
+# Run the simulation
+results <- simulate_agent_based_model(num_generations, 
+                                      initial_pop_A, initial_pop_B, initial_pop_C,
+                                      birth_rate_A, birth_rate_B, birth_rate_C,
+                                      death_rate_A, death_rate_B, death_rate_C,
+                                      consumption_AB, consumption_BC, consumption_C,
+                                      removal_ratio_A, removal_ratio_B, removal_ratio_C)
+
+# Print the results
+print(results)
+results$Population_A[results$Population_A <= 0] <- 1  # Set zero or negative values to 1
+results$Population_B[results$Population_B <= 0] <- 1
+results$Population_C[results$Population_C <= 0] <- 1
+
+# Plot the results with improved aesthetics
+ggplot(results, aes(x = Generation)) +
+  geom_line(aes(y = Population_A, color = "Population_A"), size = 0.8) +
+  geom_line(aes(y = Population_B, color = "Population_B"), size = 0.8) +
+  geom_line(aes(y = Population_C, color = "Population_C"), size = 0.8) +
+  labs(x = "Generation", y = "Population", color = "Species") +
+  scale_x_continuous(breaks = seq(0, num_generations, by = 10)) +  # Custom x-axis breaks
+  scale_y_log10(labels = scales::comma) +
+  scale_color_manual(values = c("Population_A" = "blue", "Population_B" = "red", "Population_C" = "green"))+
+  theme_minimal() +
+  theme(legend.title = element_blank(),  
+        legend.position = "right")
+```
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+```
+
+
